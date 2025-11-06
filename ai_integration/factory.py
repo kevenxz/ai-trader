@@ -1,6 +1,8 @@
 # ai_integration/factory.py
 from typing import Dict, Type, Optional, Any
 from .services.ai_service import AIService
+from .services.guiji import GuijiService
+
 
 class AIServiceFactory:
     """AI服务工厂类 - 支持多平台配置"""
@@ -8,8 +10,6 @@ class AIServiceFactory:
     # 服务映射表
     _service_mapping: Dict[str, str] = {
         "deepseek": "deepseek",
-        "kimi": "kimi",
-        "moonshot": "kimi",  # 别名支持
         "siliconflow": "guiji"  # 硅基流动别名
     }
 
@@ -33,15 +33,14 @@ class AIServiceFactory:
         # 解析实际服务类型
         actual_service = cls._service_mapping.get(service_type.lower(), service_type.lower())
 
-        if actual_service == "kimi":
-            from .services.kimi import KimiService
+        if actual_service == "guiji":
             # 根据平台设置不同的base_url
-            base_url = cls._get_kimi_base_url(platform)
-            kwargs['base_url'] = base_url
-            return KimiService(api_key, **kwargs)
-        elif actual_service == "deepseek":
-            from .services.deepseek import DeepSeekService
-            return DeepSeekService(api_key, **kwargs)
+            # base_url = cls._get_kimi_base_url(platform)
+            # kwargs['base_url'] = base_url
+            return GuijiService(api_key, **kwargs)
+        # elif actual_service == "deepseek":
+        #     from .services.deepseek import DeepSeekService
+        #     return DeepSeekService(api_key, **kwargs)
 
         return None
 

@@ -2,6 +2,20 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routers import ai_router, health
+import logging
+import logging.config
+
+# 为所有模块设置日志级别
+logging.getLogger("app").setLevel(logging.INFO)
+logging.getLogger("ai_integration").setLevel(logging.INFO)
+
+
+# 配置全局日志格式
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s]-[%(name)s]-[%(levelname)s] : %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 app = FastAPI(
     title="AI Integration API",

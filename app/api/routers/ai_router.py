@@ -17,6 +17,8 @@ class ChatRequest(BaseModel):
     model: Optional[str] = None
     temperature: Optional[float] = 0.7
     max_tokens: Optional[int] = 2048
+    enable_thinking: Optional[bool] = False
+    session_id: Optional[str] = None
 
 class ServiceConfig(BaseModel):
     service: str
@@ -78,7 +80,9 @@ async def chat_completion(request: ChatRequest):
             messages,
             model=request.model,
             temperature=request.temperature,
-            max_tokens=request.max_tokens
+            max_tokens=request.max_tokens,
+            enable_thinking=request.enable_thinking,
+            session_id=request.session_id
         )
 
         return result

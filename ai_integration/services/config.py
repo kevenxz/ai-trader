@@ -2,12 +2,26 @@
 import os
 from typing import Dict, Any, Optional
 import yaml
-
+import inspect  # 引入 inspect 模块
 class AIConfig:
     """AI服务配置管理类 - 支持运行时参数覆盖"""
 
     def __init__(self, config_path: str = "ai_config.yaml"):
-        self.config_path = config_path
+        # 首先尝试使用传入的路径（可能是相对或绝对）
+        if os.path.exists(config_path):
+            self.config_path = config_path
+        else:
+            # 如果传入路径不存在，则尝试相对于 config.py 文件所在目录查找
+            this_file_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+            alt_config_path = os.path.join(this_file_dir, "..", config_path)  # 假设 yaml 在上一级
+            alt_config_path = os.path.abspath(alt_config_path)
+            if os.path.exists(alt_config_path):
+                self.config_path = alt_config_path
+                print(f"Fallback to resolved config path: {self.config_path}")
+            else:
+                # 如果都找不到，仍使用原始路径，让 _load_config 处理 fallback
+                self.config_path = config_path
+
         self._config = self._load_config()
         self._runtime_overrides: Dict[str, Any] = {}
 
