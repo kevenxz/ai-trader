@@ -3,6 +3,8 @@ import requests
 import time
 from typing import List, Dict, Any, Optional
 from enum import Enum
+import pandas as pd
+import numpy as np
 from urllib.parse import urlencode
 
 class FuturesSymbol(Enum):
@@ -136,3 +138,34 @@ class BinanceFuturesClient:
                 "ignore": kline[11]
             })
         return formatted_klines
+
+    # 在 exchanges/binance/futures.py 文件中的 BinanceFuturesClient 类中添加新方法
+    def get_klines_with_indicators(
+            self,
+            symbol: FuturesSymbol,
+            interval: str = "1h",
+            limit: int = 500,
+            start_time: Optional[int] = None,
+            end_time: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        获取合约K线数据并计算所有技术指标
+
+        Args:
+            symbol: 交易对枚举值
+            interval: K线间隔 (1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M)
+            limit: 返回的K线数量，最大1500，默认500
+            start_time: 开始时间戳 (毫秒)
+            end_time: 结束时间戳 (毫秒)
+
+        Returns:
+            包含所有技术指标的K线数据列表
+        """
+        # 获取原始K线数据
+        klines = self.get_klines(symbol, interval, limit, start_time, end_time)
+
+        # 计算所有技术指标
+        from .indicators import TechnicalIndicators
+        klines_with_indicators = TechnicalIndicators.calculate_all(klines)
+
+        return klines_with_indicators
