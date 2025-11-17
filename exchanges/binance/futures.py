@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 from urllib.parse import urlencode
 
+
 class FuturesSymbol(Enum):
     """合约交易对枚举"""
     BTCUSDT = "BTCUSDT"
@@ -20,6 +21,7 @@ class FuturesSymbol(Enum):
     MATICUSDT = "MATICUSDT"
     LTCUSDT = "LTCUSDT"
     # 可根据需要添加更多交易对
+
 
 class BinanceFuturesClient:
     """币安合约交易客户端（直接HTTP请求）"""
@@ -56,12 +58,12 @@ class BinanceFuturesClient:
         pass
 
     def get_klines(
-        self,
-        symbol: FuturesSymbol,
-        interval: str = "1h",
-        limit: int = 500,
-        start_time: Optional[int] = None,
-        end_time: Optional[int] = None
+            self,
+            symbol: FuturesSymbol,
+            interval: str = "1h",
+            limit: int = 500,
+            start_time: Optional[int] = None,
+            end_time: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
         获取合约K线数据（直接HTTP请求）
@@ -102,7 +104,7 @@ class BinanceFuturesClient:
             response = requests.get(url, params=params, headers=headers, timeout=30)
 
             if response.status_code == 200:
-                return self._format_klines(response.json())
+                return self._format_klines(response.json(), symbol, interval)
             else:
                 raise Exception(f"Binance API Error: {response.status_code} - {response.text}")
 
@@ -111,7 +113,7 @@ class BinanceFuturesClient:
         except Exception as e:
             raise Exception(f"Error fetching klines: {str(e)}")
 
-    def _format_klines(self, klines_data: List[List]) -> List[Dict[str, Any]]:
+    def _format_klines(self, klines_data: List[List], symbol: FuturesSymbol, interval: str) -> List[Dict[str, Any]]:
         """
         格式化K线数据
 
@@ -124,6 +126,8 @@ class BinanceFuturesClient:
         formatted_klines = []
         for kline in klines_data:
             formatted_klines.append({
+                "symbol": symbol.value,
+                "interval": interval,
                 "open_time": str(kline[0]),
                 "open": str(kline[1]),
                 "high": str(kline[2]),
@@ -136,6 +140,8 @@ class BinanceFuturesClient:
                 "taker_buy_base_asset_volume": str(kline[9]),
                 "taker_buy_quote_asset_volume": str(kline[10]),
                 "ignore": kline[11]
+
+
             })
         return formatted_klines
 

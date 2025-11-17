@@ -18,6 +18,11 @@ class AIService(ABC):
     async def embedding(self, text: str, **kwargs) -> List[float]:
         """文本嵌入接口"""
         pass
+    # 添加获取当前对话接口
+    @abstractmethod
+    def get_current_session(self, session_id: str) -> Dict[str, Any]:
+        """获取当前对话接口"""
+        pass
     
     @property
     @abstractmethod

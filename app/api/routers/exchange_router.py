@@ -15,35 +15,73 @@ from exchanges.binance.indicators import TechnicalIndicators
 router = APIRouter(prefix="/api/exchange", tags=["exchange"])
 
 # 更新 app/api/routers/exchange_router.py 中的 KlineResponse 模型
+# 在 app/api/routers/exchange_router.py 中修改 KlineResponse 模型
+
 class KlineResponse(BaseModel):
-    open_time: str
-    open: str
-    high: str
-    low: str
-    close: str
-    volume: str
-    close_time: str
-    quote_asset_volume: str
-    number_of_trades: str
-    taker_buy_base_asset_volume: str
-    taker_buy_quote_asset_volume: str
-    # MACD指标
+    symbol: str # 交易对
+    interval: str # 周期
+    open_time: str # 开盘时间:
+    open: str # 开盘价
+    high: str # 最高价
+    low: str # 最低价
+    close: str # 收盘价(当前K线未
+    volume: str # 成交量
+    close_time: str # 收盘时间
+    quote_asset_volume: str # 成交额
+    number_of_trades: str # 成交笔数
+    taker_buy_base_asset_volume: str # 主动买入成交量
+    taker_buy_quote_asset_volume: str # 主动买入成交额
+    # MACD指标 (已包含周期)
     macd: Optional[float] = None
     macd_signal: Optional[float] = None
     macd_histogram: Optional[float] = None
-    # RSI指标
-    rsi: Optional[float] = None
-    # 布林带指标
+    # RSI指标 (添加周期)
+    rsi_14: Optional[float] = None
+    # 布林带指标 (已包含周期)
     bb_upper: Optional[float] = None
     bb_middle: Optional[float] = None
     bb_lower: Optional[float] = None
-    # 移动平均线
+    # 移动平均线 (已包含周期)
     ma_30: Optional[float] = None
-    # 指数移动平均线
+    # 指数移动平均线 (已包含周期)
     ema_12: Optional[float] = None
     # 随机指标
     stoch_k: Optional[float] = None
     stoch_d: Optional[float] = None
+    # ATR指标 (添加周期)
+    atr_14: Optional[float] = None
+    # CCI指标 (添加周期)
+    cci_20: Optional[float] = None
+    # 威廉姆斯%R指标 (添加周期)
+    williams_r_14: Optional[float] = None
+    # 动量指标 (添加周期)
+    momentum_10: Optional[float] = None
+    # 顺势指标
+    tenkan_sen: Optional[float] = None
+    kijun_sen: Optional[float] = None
+    senkou_span_a: Optional[float] = None
+    senkou_span_b: Optional[float] = None
+    chikou_span: Optional[float] = None
+    # 抛物线SAR指标
+    sar: Optional[float] = None
+    # VWAP指标
+    vwap: Optional[float] = None
+    # MFI指标 (添加周期)
+    mfi_14: Optional[float] = None
+    # OBV指标
+    obv: Optional[float] = None
+    # ADL指标
+    adl: Optional[float] = None
+    # CMF指标 (添加周期)
+    cmf_20: Optional[float] = None
+    # 标准差指标 (添加周期)
+    std_20: Optional[float] = None
+    # ADX指标 (添加周期)
+    adx_14: Optional[float] = None
+    di_plus: Optional[float] = None
+    di_minus: Optional[float] = None
+    # 波动率指标
+    volatility_20: Optional[float] = None  # 20周期波动率
 
 
 class KlinesResponse(BaseModel):

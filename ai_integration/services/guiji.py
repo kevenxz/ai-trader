@@ -4,6 +4,9 @@ from collections import defaultdict, deque
 
 import aiohttp
 from typing import Dict, Any, List, Optional
+
+from app.core import prompts, robot
+from exchanges.binance import BinanceFuturesClient, FuturesSymbol
 from .ai_service import AIService
 import logging
 
@@ -19,7 +22,7 @@ class GuijiService(AIService):
             api_key: str,
             base_url: str = "https://api.moonshot.cn",
             model: str = "moonshot-v1-8k",
-            max_history_length: int = 100  # 最大历史记录长度
+            max_history_length: int = 300  # 最大历史记录长度
     ):
         super().__init__(api_key, base_url)
         self.model = model
@@ -61,16 +64,26 @@ class GuijiService(AIService):
                     f"  -H 'Content-Type: {headers.get('Content-Type', 'application/json')}' \\\n"
                     f"  -d '{payload_str}'")
 
+    def get_current_session(self, session_id: str) -> list[dict[str, str]]:
+        return self.get_history(session_id)
+
     async def chat_completion(self, messages: List[Dict[str, str]],
-                              session_id: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+                              session_id: Optional[str] = None, symbol: Optional[BinanceFuturesClient] = None,
+                              **kwargs) -> Dict[str, Any]:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
+
         # 如果提供了 session_id，则合并历史消息
         if session_id:
             history = self.get_history(session_id)
-            combined_messages = history + messages
+            # 判断历史消息长度
+            if history is not None and len(history) > 0:
+                combined_messages = history + messages
+            else:
+                combined_messages = [{"role": "system", "content": prompts.AI_TRADER_PROMPTS}]
+                messages = combined_messages
         else:
             combined_messages = messages
 
@@ -79,7 +92,7 @@ class GuijiService(AIService):
             "messages": combined_messages,
             "temperature": kwargs.get("temperature", 0.5),
             "max_tokens": kwargs.get("max_tokens", 8192),
-            "enable_thinking": kwargs.get("enable_thinking", False),
+            # "enable_thinking": kwargs.get("enable_thinking", False),
 
             "stream": kwargs.get("stream", False)
         }
@@ -97,16 +110,21 @@ class GuijiService(AIService):
                         f"{self.base_url}/chat/completions",
                         headers=headers,
                         json=payload,
-                        timeout=aiohttp.ClientTimeout(total=300)
+                        timeout=aiohttp.ClientTimeout(total=1000)
                 ) as response:
                     result = await response.json()
                     if response.status == 200:
                         logger.info(f"GUIJI Response: {result}")
                         # 将新消息添加到历史记录中
-                        if session_id:
+                        if session_id and len(self.get_current_session(session_id)) == 0:
                             for msg in messages:
                                 self.add_to_history(session_id, msg)
                             self.add_to_history(session_id, result['choices'][0]['message'])
+
+                        # 推送钉钉
+                        await robot.send_msg(
+                            "***" + symbol.value + "***\n" + result['choices'][0]['message'][
+                                'content'])
                         return result
                     else:
                         error_text = await response.text()
