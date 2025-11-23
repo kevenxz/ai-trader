@@ -678,31 +678,22 @@ class TechnicalIndicators:
 
     @staticmethod
     def calculate_obv(klines: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """
-        计算平衡成交量(OBV)
-
-        Args:
-            klines: K线数据列表
-
-        Returns:
-            包含OBV指标的K线数据
-        """
         df = pd.DataFrame(klines)
         df['close'] = df['close'].astype(float)
         df['volume'] = df['volume'].astype(float)
 
-        # 计算OBV
-        df['obv'] = 0.0
-        df.iloc[0, df.columns.get_loc('obv')] = df['volume'].iloc[0]
+        # 初始化 OBV（标准：第一根为0）
+        obv = [0.0]
 
         for i in range(1, len(df)):
-            if df['close'].iloc[i] > df['close'].iloc[i-1]:
-                df.iloc[i, df.columns.get_loc('obv')] = df['obv'].iloc[i-1] + df['volume'].iloc[i]
-            elif df['close'].iloc[i] < df['close'].iloc[i-1]:
-                df.iloc[i, df.columns.get_loc('obv')] = df['obv'].iloc[i-1] - df['volume'].iloc[i]
+            if df['close'].iloc[i] > df['close'].iloc[i - 1]:
+                obv.append(obv[-1] + df['volume'].iloc[i])
+            elif df['close'].iloc[i] < df['close'].iloc[i - 1]:
+                obv.append(obv[-1] - df['volume'].iloc[i])
             else:
-                df.iloc[i, df.columns.get_loc('obv')] = df['obv'].iloc[i-1]
+                obv.append(obv[-1])
 
+        df['obv'] = obv
         return df.to_dict('records')
 
     @staticmethod
@@ -898,7 +889,10 @@ class TechnicalIndicators:
         result = TechnicalIndicators.calculate_rsi(result, 14)
         result = TechnicalIndicators.calculate_bollinger_bands(result)
         result = TechnicalIndicators.calculate_ma(result, 30)
+        result = TechnicalIndicators.calculate_ma(result, 10)
         result = TechnicalIndicators.calculate_ema(result, 12)
+        result = TechnicalIndicators.calculate_ema(result, 26)
+
         result = TechnicalIndicators.calculate_stochastic(result)
         result = TechnicalIndicators.calculate_atr(result, 14)
         result = TechnicalIndicators.calculate_cci(result, 20)

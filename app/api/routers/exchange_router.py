@@ -43,8 +43,11 @@ class KlineResponse(BaseModel):
     bb_lower: Optional[float] = None
     # 移动平均线 (已包含周期)
     ma_30: Optional[float] = None
+    ma_10: Optional[float] = None
     # 指数移动平均线 (已包含周期)
     ema_12: Optional[float] = None
+    # 指数移动平均线 (已包含周期)
+    ema_26: Optional[float] = None
     # 随机指标
     stoch_k: Optional[float] = None
     stoch_d: Optional[float] = None

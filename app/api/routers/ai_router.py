@@ -156,9 +156,10 @@ async def chat_completion(request: ChatTraderRequest):
                 start_time=None,
                 end_time=None
             )
-            # 将k线数据作为系统消息添加到消息列表开头
-            system_message = {"role": "system", "content": str(klines)}
-            messages = [system_message]
+            # 将k线数据的后100根作为系统消息添加到消息列表开头
+            messages = [{"role": "system", "content": str(klines[-120:])}]
+            # system_message = {"role": "system", "content": str(klines)}
+            # messages = [system_message]
         else:
             # 转换消息格式 - 修复字典访问方式
             messages = []

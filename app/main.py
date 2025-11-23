@@ -1,7 +1,7 @@
 # app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routers import ai_router, health, exchange_router
+from app.api.routers import ai_router, health, exchange_router, scheduler_router
 import logging
 import logging.config
 
@@ -41,6 +41,7 @@ app.add_middleware(ResponseBodyCaptureMiddleware)
 app.include_router(ai_router)
 app.include_router(health)
 app.include_router(exchange_router)
+app.include_router(scheduler_router)
 
 @app.get("/")
 async def root():
