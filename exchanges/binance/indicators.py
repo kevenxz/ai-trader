@@ -517,68 +517,75 @@ class TechnicalIndicators:
 
     @staticmethod
     def calculate_parabolic_sar(klines: List[Dict[str, Any]],
-                               acceleration: float = 0.02,
-                               maximum: float = 0.2) -> List[Dict[str, Any]]:
+                                acceleration: float = 0.02,
+                                maximum: float = 0.2) -> List[Dict[str, Any]]:
         """
-        计算抛物线转向指标(Parabolic SAR)
+           计算抛物线转向指标(Parabolic SAR)
 
-        Args:
-            klines: K线数据列表
-            acceleration: 步长
-            maximum: 最大步长
+           Args:
+               klines: K线数据列表
+               acceleration: 步长
+               maximum: 最大步长
 
-        Returns:
-            包含抛物线转向指标的K线数据
-        """
+           Returns:
+               包含抛物线转向指标的K线数据
+           """
         df = pd.DataFrame(klines)
         df['high'] = df['high'].astype(float)
         df['low'] = df['low'].astype(float)
         df['close'] = df['close'].astype(float)
 
-        # 初始化SAR数组
         sar = [0.0] * len(df)
 
-        # 初始状态
-        bull = True
+        # 1. 判断初始趋势
+        bull = df['close'].iloc[1] >= df['close'].iloc[0]
+
         af = acceleration
-        ep = df['low'].iloc[0] if bull else df['high'].iloc[0]
-        sar[0] = df['high'].iloc[0] if bull else df['low'].iloc[0]
+        if bull:
+            ep = df['high'].iloc[0]  # 多头趋势极值 = 最高价
+            sar[0] = df['low'].iloc[0]  # SAR 在下方
+        else:
+            ep = df['low'].iloc[0]  # 空头趋势极值 = 最低价
+            sar[0] = df['high'].iloc[0]  # SAR 在上方
 
         for i in range(1, len(df)):
-            sar[i] = sar[i-1] + af * (ep - sar[i-1])
+            # 2. 先计算候选SAR
+            psar = sar[i - 1] + af * (ep - sar[i - 1])
 
+            # 3. 按方向做约束
             if bull:
-                # 上升趋势
-                if df['low'].iloc[i] < sar[i]:
-                    # 趋势反转
+                # 通常用前1~2根的low做约束，这里简化为1根或2根都可以
+                psar = min(psar, df['low'].iloc[i - 1])
+                if i > 1:
+                    psar = min(psar, df['low'].iloc[i - 2])
+                # 4. 判断是否反转
+                if df['low'].iloc[i] < psar:
+                    # 反转为空头
                     bull = False
-                    sar[i] = ep
+                    sar[i] = ep  # 反转当根SAR = 上一趋势极值
                     af = acceleration
-                    ep = df['low'].iloc[i]
+                    ep = df['low'].iloc[i]  # 新空头趋势的初始极值
                 else:
-                    # 继续上升趋势
+                    sar[i] = psar
+                    # 更新EP/AF
                     if df['high'].iloc[i] > ep:
                         ep = df['high'].iloc[i]
                         af = min(af + acceleration, maximum)
             else:
-                # 下降趋势
-                if df['high'].iloc[i] > sar[i]:
-                    # 趋势反转
+                psar = max(psar, df['high'].iloc[i - 1])
+                if i > 1:
+                    psar = max(psar, df['high'].iloc[i - 2])
+                if df['high'].iloc[i] > psar:
+                    # 反转为多头
                     bull = True
                     sar[i] = ep
                     af = acceleration
                     ep = df['high'].iloc[i]
                 else:
-                    # 继续下降趋势
+                    sar[i] = psar
                     if df['low'].iloc[i] < ep:
                         ep = df['low'].iloc[i]
                         af = min(af + acceleration, maximum)
-
-            # 确保SAR不超过当前K线的高低点
-            if bull:
-                sar[i] = min(sar[i], df['low'].iloc[i], df['low'].iloc[i-1])
-            else:
-                sar[i] = max(sar[i], df['high'].iloc[i], df['high'].iloc[i-1])
 
         df['sar'] = sar
         return df.to_dict('records')
