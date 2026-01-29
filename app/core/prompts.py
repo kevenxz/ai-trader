@@ -1,5 +1,60 @@
 # app/core/prompts.py
-"""技术指标字段提示词配置文件"""
+"""技术指标字段提示词配置文件 - LangChain集成版本"""
+
+from typing import Optional, List, Literal
+from pydantic import BaseModel, Field
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import PydanticOutputParser
+
+
+class TargetLevel(BaseModel):
+    """目标价位模型"""
+    level: str = Field(description="目标级别，如T1, T2, T3")
+    price: float = Field(description="目标价格")
+    percentage: float = Field(description="涨跌幅百分比")
+    reason: str = Field(description="对应阻力/指标信号说明")
+
+
+class TraderOutputModel(BaseModel):
+    """交易决策输出模型 - 用于LangChain结构化输出"""
+    recommendation: Literal["BUY", "SELL", "HOLD"] = Field(
+        description="交易建议：BUY（买入）、SELL（卖出）、HOLD（持有）"
+    )
+    trend_status: str = Field(
+        description="趋势状态：多头/空头/震荡（基于MA/云图/ADX）"
+    )
+    momentum: Literal["bullish", "bearish", "neutral"] = Field(
+        description="动量方向（MACD/RSI/Stoch共识）"
+    )
+    volume_price_confirmation: Literal["确认", "背离", "中性"] = Field(
+        description="量价确认状态（OBV/MFI/VWAP分析）"
+    )
+    entry_price_min: float = Field(description="入场区间最低价")
+    entry_price_max: float = Field(description="入场区间最高价")
+    stop_loss: float = Field(description="止损位价格")
+    stop_loss_percentage: float = Field(description="止损百分比（基于ATR）")
+    targets: List[TargetLevel] = Field(description="目标价位列表")
+    position_size_percentage: float = Field(
+        description="仓位建议，占总资金百分比（基于波动率调整）"
+    )
+    risk_level: Literal["LOW", "MEDIUM", "HIGH"] = Field(
+        description="风险等级"
+    )
+    indicator_alerts: Optional[str] = Field(
+        default=None,
+        description="指标异常提示（关键指标背离或矛盾信号说明）"
+    )
+    analysis_summary: Optional[str] = Field(
+        default=None,
+        description="分析总结"
+    )
+
+
+# 创建输出解析器实例
+trader_output_parser = PydanticOutputParser(pydantic_object=TraderOutputModel)
+
+# 获取输出格式说明
+TRADER_OUTPUT_FORMAT = trader_output_parser.get_format_instructions()
 
 # K线基础字段提示词
 KLINE_FIELD_PROMPTS = {
@@ -153,28 +208,38 @@ AI_TRADER_PROMPTS = """---
     di_minus: Optional[float] = None
     # 波动率指标
     volatility_20: Optional[float] = None  # 20周期波动率
-**下面模板是你决策输出的格式,你需要严格按照下面模板输出**  
+
+**重要：你必须严格按照下面的JSON格式输出你的分析结果，不要输出任何其他内容，只输出JSON对象**
+
+```json
+{{
+  "recommendation": "BUY|SELL|HOLD",
+  "trend_status": "多头|空头|震荡",
+  "momentum": "bullish|bearish|neutral",
+  "volume_price_confirmation": "确认|背离|中性",
+  "entry_price_min": 价格数字,
+  "entry_price_max": 价格数字,
+  "stop_loss": 止损价格数字,
+  "stop_loss_percentage": 止损百分比数字,
+  "targets": [
+    {{"level": "T1", "price": 目标价格, "percentage": 涨幅百分比, "reason": "对应阻力/指标信号"}},
+    {{"level": "T2", "price": 目标价格, "percentage": 涨幅百分比, "reason": "强阻力/斐波那契"}},
+    {{"level": "T3", "price": 目标价格, "percentage": 涨幅百分比, "reason": "趋势目标"}}
+  ],
+  "position_size_percentage": 仓位百分比数字,
+  "risk_level": "LOW|MEDIUM|HIGH",
+  "indicator_alerts": "如有关键指标背离或矛盾信号在此说明，否则为null",
+  "analysis_summary": "简要分析总结"
+}}
 ```
-**RECOMMENDATION: [BUY/SELL/HOLD]**  
 
-**关键信号**  
-▸ 趋势状态：[多头/空头/震荡]（基于MA/云图/ADX）  
-▸ 动量方向：[ bullish/bearish/neutral ]（MACD/RSI/Stoch共识）  
-▸ 量价确认：[确认/背离/中性]（OBV/MFI/VWAP分析）  
-
-**交易计划**  
-入场区间：[$价格 - $价格]  
-止损位：$价格（基于ATR：-X%）  
-目标位：[  
-　T1: $价格 (+Y%) - [对应阻力/指标信号]  
-　T2: $价格 (+Z%) - [强阻力/斐波那契]  
-　T3: $价格 (+W%) - [趋势目标] ]  
-仓位建议：≤总资金X%（基于波动率调整）  
-风险等级：⭐️⭐️⭐️（LOW/MEDIUM/HIGH）  
-
-**指标异常提示**  
-> [如出现关键指标背离或矛盾信号，在此特别说明]
-```"""
+注意事项：
+1. 所有数字字段直接使用数字，不要使用字符串
+2. recommendation只能是 "BUY"、"SELL" 或 "HOLD" 之一
+3. momentum只能是 "bullish"、"bearish" 或 "neutral" 之一
+4. risk_level只能是 "LOW"、"MEDIUM" 或 "HIGH" 之一
+5. 不要在JSON外面添加任何文字说明
+6. 确保JSON格式正确可解析"""
 
 
 # 技术指标字段提示词

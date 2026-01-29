@@ -28,6 +28,8 @@ class AIManager:
         # 从配置中提取参数
         platform = config.get('platform', 'default')
         base_url = config.get('base_url')
+        use_langchain = config.get('use_langchain', False)
+        available_models = config.get('available_models', [])
 
         # 创建服务实例
         service = AIServiceFactory.create_service(
@@ -35,7 +37,9 @@ class AIManager:
             api_key,
             platform=platform,
             base_url=base_url,
-            model=config.get('model')
+            model=config.get('model'),
+            use_langchain=use_langchain,
+            available_models=available_models
         )
 
         if service:

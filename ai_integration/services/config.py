@@ -51,6 +51,12 @@ class AIConfig:
                     "model": "moonshot-v1-8k",
                     "platform": "default",
                     "enabled": False
+                },
+                "qiniu": {
+                    "api_key": "",
+                    "base_url": "https://api.qnaigc.com/v1",
+                    "model": "deepseek-ai/DeepSeek-V3",
+                    "enabled": False
                 }
             },
             "default_service": "kimi"
