@@ -1,10 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import Dashboard from "@/pages/Dashboard";
-import Trading from "@/pages/Trading";
+import SchedulerManager from "@/pages/SchedulerManager";
 import AI from "@/pages/AI";
-import Orders from "@/pages/Orders";
-import Tasks from "@/pages/Tasks";
+import TradingOrders from "@/pages/TradingOrders";
 
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -14,11 +13,10 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Layout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="trading" element={<Trading />} />
+            <Route index element={<TradingOrders />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="scheduler" element={<SchedulerManager />} />
             <Route path="ai" element={<AI />} />
-            <Route path="orders" element={<Orders />} />
-            <Route path="tasks" element={<Tasks />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

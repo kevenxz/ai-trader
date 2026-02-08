@@ -3,14 +3,17 @@
 import asyncio
 import logging
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, TYPE_CHECKING
 import aiohttp
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.job import Job
 
-from app.api.routers.ai_router import ChatTraderRequest
 from exchanges.binance.futures import FuturesSymbol
+
+# 使用 TYPE_CHECKING 延迟导入，避免循环导入
+if TYPE_CHECKING:
+    from app.api.routers.ai_router import ChatTraderRequest
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +47,7 @@ class TradingScheduler:
 
     def add_trading_job(self,
                         job_id: str,
-                        chatTraderRequest: ChatTraderRequest,
+                        chatTraderRequest: "ChatTraderRequest",
                         interval: int = 20,
                         type: str = "m"):
         """
@@ -83,8 +86,18 @@ class TradingScheduler:
         self.jobs[job_id] = {
             "job": job,
             "symbol": chatTraderRequest.symbol.value,
-            "interval": interval,
-            "type": type
+            "kline_interval": chatTraderRequest.interval,
+            "schedule_type": type,
+            "schedule_value": interval,
+            "trader_config": {
+                "service": chatTraderRequest.service,
+                "model": chatTraderRequest.model,
+                "klines_count": chatTraderRequest.klines_count,
+                "temperature": chatTraderRequest.temperature,
+                "enable_thinking": chatTraderRequest.enable_thinking,
+                "is_trader": chatTraderRequest.is_Trader
+            },
+            "is_paused": False
         }
 
         logger.info(f"Added trading job: {job_id} with schedule '{cron_exp}'")
@@ -96,6 +109,66 @@ class TradingScheduler:
             self.scheduler.remove_job(job_id)
             del self.jobs[job_id]
             logger.info(f"Removed trading job: {job_id}")
+
+    def pause_job(self, job_id: str):
+        """Pause a specific job"""
+        if job_id in self.jobs:
+            self.scheduler.pause_job(job_id)
+            self.jobs[job_id]["is_paused"] = True
+            logger.info(f"Paused trading job: {job_id}")
+            return True
+        return False
+
+    def resume_job(self, job_id: str):
+        """Resume a paused job"""
+        if job_id in self.jobs:
+            self.scheduler.resume_job(job_id)
+            self.jobs[job_id]["is_paused"] = False
+            logger.info(f"Resumed trading job: {job_id}")
+            return True
+        return False
+
+    async def run_job_now(self, job_id: str):
+        """Run a job immediately without waiting for schedule"""
+        if job_id not in self.jobs:
+            return False
+        
+        job_data = self.jobs[job_id]
+        logger.info(f"Manually triggering job: {job_id}")
+        
+        # 确保 session 已初始化
+        session_created = False
+        if self.session is None or self.session.closed:
+            self.session = aiohttp.ClientSession()
+            session_created = True
+        
+        try:
+            # 从存储的配置重建 ChatTraderRequest
+            from app.api.routers.ai_router import ChatTraderRequest
+            from exchanges.binance.futures import FuturesSymbol
+            
+            trader_config = job_data.get("trader_config", {})
+            request = ChatTraderRequest(
+                service=trader_config.get("service", "guiji"),
+                model=trader_config.get("model"),
+                symbol=FuturesSymbol(job_data["symbol"]),
+                interval=job_data["kline_interval"],
+                klines_count=trader_config.get("klines_count", 100),
+                temperature=trader_config.get("temperature", 0.7),
+                enable_thinking=trader_config.get("enable_thinking", False),
+                is_Trader=trader_config.get("is_trader", True),
+                messages=[]
+            )
+            
+            # 异步执行交易分析
+            await self._execute_trade_analysis(request, job_data["kline_interval"], job_id)
+            logger.info(f"Manual execution completed for job: {job_id}")
+            return True
+        finally:
+            # 如果是临时创建的 session，执行完后关闭
+            if session_created and self.session and not self.session.closed:
+                await self.session.close()
+                self.session = None
 
     def update_job_interval(self, job_id: str, hours: int):
         """
@@ -111,7 +184,7 @@ class TradingScheduler:
         # Get current job details
         job_details = self.jobs[job_id]
         symbol = job_details["symbol"]
-        interval = job_details["interval"]
+        interval = job_details["kline_interval"]
 
         # Remove old job
         self.remove_job(job_id)
@@ -123,12 +196,23 @@ class TradingScheduler:
         """Get status of all scheduled jobs"""
         status = {}
         for job_id, job_data in self.jobs.items():
-            job: Job = job_data["job"]
+            # Get fresh job from scheduler to access next_run_time
+            next_run = None
+            try:
+                scheduler_job = self.scheduler.get_job(job_id)
+                if scheduler_job and hasattr(scheduler_job, 'next_run_time') and scheduler_job.next_run_time:
+                    next_run = scheduler_job.next_run_time.isoformat()
+            except Exception as e:
+                logger.warning(f"Failed to get next_run_time for job {job_id}: {e}")
+            
             status[job_id] = {
-                "symbol": job_data["symbol"].value,
-                "interval": job_data["interval"],
-                "hours": job_data["hours"],
-                "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None
+                "symbol": job_data["symbol"],
+                "kline_interval": job_data["kline_interval"],
+                "schedule_type": job_data["schedule_type"],
+                "schedule_value": job_data["schedule_value"],
+                "next_run_time": next_run,
+                "is_paused": job_data.get("is_paused", False),
+                "trader_config": job_data.get("trader_config", {})
             }
         return status
 
@@ -138,7 +222,7 @@ class TradingScheduler:
         #       "job_id": job_id
         #   }
 
-    async def _execute_trade_analysis(self, chatTraderRequest: ChatTraderRequest, interval: str, job_id: str):
+    async def _execute_trade_analysis(self, chatTraderRequest: "ChatTraderRequest", interval: str, job_id: str):
         """
         Execute trade analysis by calling the trader API
 

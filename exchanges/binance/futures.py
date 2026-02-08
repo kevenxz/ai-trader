@@ -57,6 +57,32 @@ class BinanceFuturesClient:
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
+    def get_symbol_ticker(self, symbol: str) -> Dict[str, Any]:
+        """
+        获取交易对当前价格
+        
+        Args:
+            symbol: 交易对，如 "BTCUSDT"
+            
+        Returns:
+            包含 price 的字典
+        """
+        try:
+            url = f"{self.BASE_URL}/fapi/v1/ticker/price"
+            params = {"symbol": symbol}
+            
+            response = requests.get(url, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                return {"price": data.get("price", "0"), "symbol": symbol}
+            else:
+                raise Exception(f"Binance API Error: {response.status_code} - {response.text}")
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"Network Error: {str(e)}")
+        except Exception as e:
+            raise Exception(f"Error fetching ticker: {str(e)}")
+
     def get_klines(
             self,
             symbol: FuturesSymbol,

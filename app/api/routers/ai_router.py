@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import asyncio
-from app.core.ai_manager import ai_manager
+from ai_integration import ai_manager
 from exchanges.binance import FuturesSymbol, BinanceFuturesClient
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])

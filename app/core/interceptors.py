@@ -73,7 +73,7 @@ class RequestResponseLoggerMiddleware(BaseHTTPMiddleware):
                     return dict(form_data)
 
         except Exception as e:
-            logger.warning(f"读取请求体失败: {str(e)}", trace_id=trace_id_var.get())
+            logger.warning(f"读取请求体失败: {str(e)}")
 
         return None
 
@@ -99,9 +99,11 @@ class RequestResponseLoggerMiddleware(BaseHTTPMiddleware):
             "body": body
         }
 
+        # 直接打印到控制台确保可见
+        print(f"[REQUEST] {request.method} {request.url.path} | IP: {client_ip} | TraceID: {trace_id}")
+        
         logger.info(
             f"请求开始: {request.method} {request.url.path}",
-            trace_id=trace_id,
             extra={"request": log_data}
         )
 
@@ -116,9 +118,11 @@ class RequestResponseLoggerMiddleware(BaseHTTPMiddleware):
             "responseHeaders": dict(response.headers)
         }
 
+        # 直接打印到控制台确保可见
+        print(f"[RESPONSE] {request.method} {request.url.path} | Status: {response.status_code} | Time: {process_time:.4f}s")
+
         logger.info(
             f"请求完成: {request.method} {request.url.path} | 状态码: {response.status_code} | 耗时: {process_time:.4f}s",
-            trace_id=trace_id,
             extra={"response": log_data}
         )
 
@@ -169,14 +173,12 @@ class ResponseSender:
                     response_data = json.loads(body_str)
                     logger.debug(
                         "响应体内容",
-                        trace_id=self.trace_id,
                         extra={"responseBody": response_data}
                     )
                 except json.JSONDecodeError:
                     logger.debug(
                         "响应体内容(非JSON)",
-                        trace_id=self.trace_id,
                         extra={"responseBody": body_str[:500]}
                     )
         except Exception as e:
-            logger.warning(f"记录响应体失败: {str(e)}", trace_id=self.trace_id)
+            logger.warning(f"记录响应体失败: {str(e)}")

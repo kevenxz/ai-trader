@@ -1,7 +1,9 @@
 # app/main.py
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routers import ai_router, health, exchange_router, scheduler_router
+from app.api.routers import ai_router, health, exchange_router
+from app.api.routers.scheduler_router import router as scheduler_router
+from app.api.routers.order_router import router as order_router
 import logging
 import logging.config
 
@@ -42,6 +44,44 @@ app.include_router(ai_router)
 app.include_router(health)
 app.include_router(exchange_router)
 app.include_router(scheduler_router)
+app.include_router(order_router)
+
+from app.api.routers.realtime_router import router as realtime_router
+app.include_router(realtime_router)
+
+
+# 数据库和调度器生命周期管理
+@app.on_event("startup")
+async def startup_event():
+    """应用启动时初始化数据库和调度器"""
+    try:
+        # 初始化数据库连接池 (不再执行schema.sql)
+        from app.db.connection import get_db_pool
+        await get_db_pool()
+        logging.info("Database pool initialized")
+        
+        # 启动盈亏追踪调度器
+        from app.scheduler.profit_tracker import profit_tracker
+        await profit_tracker.start()
+        logging.info("Profit tracker started")
+    except Exception as e:
+        logging.warning(f"Startup initialization warning: {str(e)}")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """应用关闭时清理资源"""
+    try:
+        # 停止盈亏追踪调度器
+        from app.scheduler.profit_tracker import profit_tracker
+        await profit_tracker.stop()
+        
+        # 关闭数据库连接池
+        from app.db.connection import close_db_pool
+        await close_db_pool()
+        logging.info("Resources cleaned up")
+    except Exception as e:
+        logging.warning(f"Shutdown cleanup warning: {str(e)}")
 
 # Mount static files
 from fastapi.staticfiles import StaticFiles
