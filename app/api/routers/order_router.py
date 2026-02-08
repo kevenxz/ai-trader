@@ -14,7 +14,8 @@ from app.db.models import (
     Recommendation,
     RiskLevel,
     OrderStatus,
-    OrderCreateManual
+    OrderCreateManual,
+    OrderUpdate
 )
 
 router = APIRouter(prefix="/api/orders", tags=["Trading Orders"])
@@ -593,6 +594,54 @@ async def get_order(
             raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
         
         return order
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/{order_id}", response_model=AITradingOrder)
+async def update_order(
+    order_id: int = Path(..., description="订单ID"),
+    order_data: OrderUpdate = None
+):
+    """
+    编辑更新订单
+    
+    允许修改订单的入场价、止损、目标价、杠杆等参数
+    """
+    try:
+        from app.db.connection import execute_query, fetch_one
+        from app.services.order_service import order_service
+        
+        # 检查订单是否存在
+        existing = await order_service.get_order(order_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
+        
+        # 构建更新字段
+        update_fields = []
+        update_values = []
+        param_idx = 1
+        
+        update_data = order_data.model_dump(exclude_none=True)
+        
+        for field, value in update_data.items():
+            update_fields.append(f"{field} = ${param_idx}")
+            update_values.append(value)
+            param_idx += 1
+        
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="No fields to update")
+        
+        # 执行更新
+        update_values.append(order_id)
+        query = f"""UPDATE ai_trading_orders SET {', '.join(update_fields)}, updated_at = NOW() WHERE id = ${param_idx}"""
+        await execute_query(query, *update_values)
+        
+        # 返回更新后的订单
+        updated_order = await order_service.get_order(order_id)
+        return updated_order
     except HTTPException:
         raise
     except Exception as e:

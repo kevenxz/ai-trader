@@ -147,6 +147,22 @@ class OrderCreateManual(BaseModel):
     analysis_summary: Optional[str] = None
 
 
+class OrderUpdate(BaseModel):
+    """Order update request model - all fields optional"""
+    entry_price: Optional[float] = None
+    stop_loss: Optional[float] = None
+    target_t1: Optional[float] = None
+    target_t2: Optional[float] = None
+    target_t3: Optional[float] = None
+    leverage: Optional[float] = None
+    quantity: Optional[float] = None
+    open_amount: Optional[float] = None
+    position_size_percentage: Optional[float] = None
+    analysis_summary: Optional[str] = None
+    recommendation: Optional[Literal["BUY", "SELL", "HOLD"]] = None
+    risk_level: Optional[Literal["LOW", "MEDIUM", "HIGH"]] = None
+
+
 class OrderStatistics(BaseModel):
     """Order statistics model"""
     symbol: str

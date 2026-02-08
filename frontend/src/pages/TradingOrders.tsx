@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Database, Clock, Activity, StopCircle, Zap, Plus, X } from "lucide-react";
+import { Database, Clock, Activity, StopCircle, Zap, Plus, X, Edit } from "lucide-react";
 
 // --- Types ---
 interface AIOrder {
@@ -94,6 +94,22 @@ export default function TradingOrders() {
         open_amount: 0,
         analysis_summary: ""
     });
+
+    // Edit Order Modal State
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [updatingOrder, setUpdatingOrder] = useState(false);
+    const [editingOrder, setEditingOrder] = useState<{
+        id: number;
+        entry_price: number;
+        stop_loss: number;
+        target_t1: number;
+        target_t2: number;
+        target_t3: number;
+        leverage: number;
+        quantity: number;
+        open_amount: number;
+        analysis_summary: string;
+    } | null>(null);
 
     const selectedOrder = orders.find(o => o.id === selectedId);
 
@@ -315,6 +331,57 @@ export default function TradingOrders() {
         }
     };
 
+    const updateOrder = async () => {
+        if (!editingOrder) return;
+        try {
+            setUpdatingOrder(true);
+            const response = await fetch(`${API_BASE}/${editingOrder.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    entry_price: editingOrder.entry_price,
+                    stop_loss: editingOrder.stop_loss,
+                    target_t1: editingOrder.target_t1,
+                    target_t2: editingOrder.target_t2,
+                    target_t3: editingOrder.target_t3,
+                    leverage: editingOrder.leverage,
+                    quantity: editingOrder.quantity,
+                    open_amount: editingOrder.open_amount,
+                    analysis_summary: editingOrder.analysis_summary
+                })
+            });
+            if (response.ok) {
+                setShowEditModal(false);
+                setEditingOrder(null);
+                await fetchOrders();
+                alert("订单更新成功");
+            } else {
+                const error = await response.json();
+                alert(`更新失败: ${error.detail}`);
+            }
+        } catch (err) {
+            console.error("Failed to update order", err);
+        } finally {
+            setUpdatingOrder(false);
+        }
+    };
+
+    const openEditModal = (order: AIOrder) => {
+        setEditingOrder({
+            id: order.id,
+            entry_price: order.entry_price || 0,
+            stop_loss: order.stop_loss || 0,
+            target_t1: order.target_t1 || 0,
+            target_t2: order.target_t2 || 0,
+            target_t3: order.target_t3 || 0,
+            leverage: 1,
+            quantity: 0,
+            open_amount: 0,
+            analysis_summary: order.reasoning || ""
+        });
+        setShowEditModal(true);
+    };
+
     const toggleTracker = async () => {
         const endpoint = trackerStatus?.is_running ? "stop" : "start";
         await fetch(`${API_BASE}/profit-tracker/${endpoint}`, { method: "POST" });
@@ -534,6 +601,12 @@ export default function TradingOrders() {
                                         {calculatingProfit ? "Calculating..." : "Calculate Profit"}
                                     </button>
                                 )}
+                                <button
+                                    onClick={() => openEditModal(selectedOrder)}
+                                    className="mt-2 ml-2 bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded flex items-center gap-1"
+                                >
+                                    <Edit size={12} /> 编辑
+                                </button>
                             </div>
                         </header>
 
@@ -796,6 +869,77 @@ export default function TradingOrders() {
                             <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 bg-slate-700 text-slate-300 rounded hover:bg-slate-600">取消</button>
                             <button onClick={createOrder} disabled={creatingOrder || !newOrder.entry_price || !newOrder.stop_loss} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
                                 {creatingOrder ? "创建中..." : "确认创建"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Order Modal */}
+            {showEditModal && editingOrder && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+                    <div className="bg-slate-800 rounded-xl p-6 w-full max-w-lg border border-slate-700 shadow-2xl">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                <Edit size={20} className="text-blue-400" /> 编辑订单
+                            </h2>
+                            <button onClick={() => { setShowEditModal(false); setEditingOrder(null); }} className="text-slate-400 hover:text-white">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs text-slate-400 mb-1">入场价 *</label>
+                                    <input type="number" step="0.0001" value={editingOrder.entry_price} onChange={e => setEditingOrder({ ...editingOrder, entry_price: parseFloat(e.target.value) || 0 })} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-slate-400 mb-1">止损价 *</label>
+                                    <input type="number" step="0.0001" value={editingOrder.stop_loss} onChange={e => setEditingOrder({ ...editingOrder, stop_loss: parseFloat(e.target.value) || 0 })} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white" />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-4">
+                                <div>
+                                    <label className="block text-xs text-slate-400 mb-1">目标价 T1</label>
+                                    <input type="number" step="0.0001" value={editingOrder.target_t1} onChange={e => setEditingOrder({ ...editingOrder, target_t1: parseFloat(e.target.value) || 0 })} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-slate-400 mb-1">目标价 T2</label>
+                                    <input type="number" step="0.0001" value={editingOrder.target_t2} onChange={e => setEditingOrder({ ...editingOrder, target_t2: parseFloat(e.target.value) || 0 })} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-slate-400 mb-1">目标价 T3</label>
+                                    <input type="number" step="0.0001" value={editingOrder.target_t3} onChange={e => setEditingOrder({ ...editingOrder, target_t3: parseFloat(e.target.value) || 0 })} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white" />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-4">
+                                <div>
+                                    <label className="block text-xs text-slate-400 mb-1">杠杆</label>
+                                    <input type="number" step="1" min="1" max="125" value={editingOrder.leverage} onChange={e => setEditingOrder({ ...editingOrder, leverage: parseFloat(e.target.value) || 1 })} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-slate-400 mb-1">数量</label>
+                                    <input type="number" step="0.001" value={editingOrder.quantity} onChange={e => setEditingOrder({ ...editingOrder, quantity: parseFloat(e.target.value) || 0 })} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-slate-400 mb-1">开仓金额 (USDT)</label>
+                                    <input type="number" step="0.01" value={editingOrder.open_amount} onChange={e => setEditingOrder({ ...editingOrder, open_amount: parseFloat(e.target.value) || 0 })} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs text-slate-400 mb-1">备注</label>
+                                <textarea value={editingOrder.analysis_summary} onChange={e => setEditingOrder({ ...editingOrder, analysis_summary: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white h-20" placeholder="订单备注信息..." />
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex justify-end gap-3">
+                            <button onClick={() => { setShowEditModal(false); setEditingOrder(null); }} className="px-4 py-2 bg-slate-700 text-slate-300 rounded hover:bg-slate-600">取消</button>
+                            <button onClick={updateOrder} disabled={updatingOrder || !editingOrder.entry_price || !editingOrder.stop_loss} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                                {updatingOrder ? "更新中..." : "确认更新"}
                             </button>
                         </div>
                     </div>
